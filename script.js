@@ -22,7 +22,24 @@ document.addEventListener('DOMContentLoaded', () => {
     promptInput.style.height = 'auto';
     promptInput.style.height = Math.min(promptInput.scrollHeight, 220) + 'px';
   }
-  promptInput.addEventListener('input', autoResize);
+
+  /* ---------- termômetro reage em tempo real ao que é digitado/colado ---------- */
+  // Assim que o conteúdo da caixa corresponder ao prompt bloqueado, o
+  // indicador sobe para o vermelho imediatamente — mesmo sem clicar em
+  // enviar. Se o texto deixar de corresponder (usuário edita/apaga),
+  // o indicador volta para o verde.
+  function updateThermoFromInput() {
+    if (isBlockedPrompt(promptInput.value)) {
+      thermoIndicator.style.bottom = THERMO_HIGH;
+    } else {
+      thermoIndicator.style.bottom = THERMO_LOW;
+    }
+  }
+
+  promptInput.addEventListener('input', () => {
+    autoResize();
+    updateThermoFromInput();
+  });
 
   /* ---------- o ÚNICO prompt que deve ser bloqueado ---------- */
   const BLOCKED_PROMPT = `Preciso que você organize esta folha salarial em uma planilha.
@@ -147,7 +164,9 @@ Faça também um ranking dos colaboradores pelo salário.`;
   function closePanel() {
     sidePanel.classList.remove('open');
     panelOverlay.classList.remove('active');
-    thermoIndicator.style.bottom = THERMO_LOW;
+    // reflete o estado real do texto ainda na caixa, em vez de sempre
+    // voltar para o verde (o prompt bloqueado pode continuar lá)
+    updateThermoFromInput();
   }
 
   function bindDynamicButtons() {
@@ -301,6 +320,7 @@ Faça também um ranking dos colaboradores pelo salário.`;
     appendUserMessage(text);
     promptInput.value = '';
     autoResize();
+    updateThermoFromInput();
 
     const typingEl = appendTypingIndicator();
     await new Promise((resolve) => setTimeout(resolve, 700));
