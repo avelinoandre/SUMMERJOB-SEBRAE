@@ -91,6 +91,12 @@ Faça também um ranking dos colaboradores pelo salário.`;
       </div>
       <div class="panel-text">Este prompt contém dados pessoais identificáveis, informações financeiras e dados bancários. Seu envio pode representar riscos à privacidade e à segurança das informações.</div>
 
+      <div class="impact-box">
+        <div class="impact-label">Prejuízo financeiro estimado</div>
+        <div class="impact-value">R$ 120.000,00</div>
+        <div class="impact-note">Estimativa baseada em possíveis sanções da LGPD, custos de resposta a incidente e danos reputacionais decorrentes da exposição de dados pessoais, salariais e bancários de colaboradores.</div>
+      </div>
+
       <div class="panel-subtitle">Sugestão de prompt seguro</div>
       <div class="safe-prompt-box" id="safePromptText">"Preciso que você organize uma folha salarial em uma planilha contendo apenas cargos e faixas salariais, sem nomes, CPFs, matrículas ou dados bancários. Em seguida, gere um ranking dos colaboradores pela remuneração."</div>
 
