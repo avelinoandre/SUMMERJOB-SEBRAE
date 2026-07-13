@@ -1,5 +1,240 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+  /* =========================================================
+   * 1) CADASTRO DOS CASOS BLOQUEADOS
+   * ---------------------------------------------------------
+   * Para adicionar um novo caso, basta fazer:
+   *
+   *   BLOCKED_CASES.push({ id: '...', blockedText: '...', ... });
+   *
+   * Nenhuma outra parte do código precisa ser alterada: a
+   * detecção e o preenchimento do painel são 100% orientados
+   * por estes dados.
+   * ========================================================= */
+
+  const BLOCKED_CASES = [
+    {
+      id: 'folha_pagamento',
+
+      // Texto que, ao ser digitado/colado (ignorando espaços e
+      // quebras de linha extras), aciona o bloqueio.
+      blockedText: `Preciso que você organize esta folha salarial em uma planilha.
+Nome: Ana Paula Ferreira
+CPF: 215.789.456-09
+Matrícula: 10458
+Cargo: Analista Financeira
+Salário: R$ 12.450,00
+Conta Bancária: Banco XP - Ag. 0001 - CC 45879-2
+Nome: Rodrigo Martins
+CPF: 347.112.890-11
+Salário: R$ 18.200,00
+Faça também um ranking dos colaboradores pelo salário.`,
+
+      risk: 'alto', // 'baixo' | 'medio' | 'alto'
+
+      estimatedLoss: 'R$ 120.000,00',
+
+      analysisSummary:
+        'Foram detectados dados pessoais identificáveis (PII) e informações financeiras sensíveis.',
+
+      reason:
+        'Este prompt contém dados pessoais identificáveis, informações financeiras e dados bancários. Seu envio pode representar riscos à privacidade e à segurança das informações.',
+
+      impactNote:
+        'Estimativa baseada em possíveis sanções da LGPD, custos de resposta a incidente e danos reputacionais decorrentes da exposição de dados pessoais, salariais e bancários de colaboradores.',
+
+      detectedItems: [
+        { label: 'Nome completo:', value: 'Ana Paula Ferreira' },
+        { label: 'CPF:', value: '215.789.456-09' },
+        { label: 'Matrícula funcional:', value: '10458' },
+        { label: 'Cargo:', value: 'Analista Financeira' },
+        { label: 'Salário individual:', value: 'R$ 12.450,00' },
+        { label: 'Conta bancária:', value: 'Banco XP · Ag. 0001 · CC 45879-2' },
+        { label: 'Nome completo:', value: 'Rodrigo Martins' },
+        { label: 'CPF:', value: '347.112.890-11' },
+        { label: 'Salário individual:', value: 'R$ 18.200,00' }
+      ],
+
+      safeVersion:
+        '"Preciso que você organize uma folha salarial em uma planilha contendo apenas cargos e faixas salariais, sem nomes, CPFs, matrículas ou dados bancários. Em seguida, gere um ranking dos colaboradores pela remuneração."'
+    },
+    {
+  id: 'dados_representantes_comissao',
+  blockedText: `Preciso que você formate os dados abaixo em uma tabela organizada para o Excel. Calcule a comissão de 5% sobre o valor total de vendas de cada representante e adicione uma coluna com o 'Valor da Comissão'. Mantenha o CPF do representante na primeira coluna para eu dar o PROCV depois:
+Representante CPF 502.149.594-14: vendeu R$ 50.000,00 no mês.
+Representante CPF 969.711.384-06: vendeu R$ 120.000,00 no mês.
+Representante CPF 454.862.324-89: vendeu R$ 85.000,00 no mês.`,
+  risk: 'alto', // 'baixo' | 'medio' | 'alto'
+  estimatedLoss: 'R$ 90.000,00',
+  analysisSummary: 'Foram detectados múltiplos CPFs de representantes vinculados a dados de desempenho financeiro (vendas e comissão), com indicação explícita de uso como chave de cruzamento (PROCV) em planilha.',
+  reason: 'Este prompt contém CPFs completos de três representantes associados a valores de vendas e comissão, e solicita que o CPF seja mantido como identificador para cruzamento de dados (PROCV). Isso configura tratamento de dados pessoais sensíveis em uma ferramenta de IA externa, indo além do necessário para a finalidade (cálculo de comissão), violando o princípio da minimização de dados previsto na LGPD. O uso do CPF como chave de busca é particularmente arriscado, pois facilita a reidentificação e o cruzamento indevido com outras bases de dados.',
+  impactNote: 'Estimativa baseada em possíveis sanções da ANPD por tratamento de dados pessoais sem finalidade justificada, além de riscos de exposição de dados de remuneração e identificação de colaboradores caso o conteúdo seja processado ou armazenado por terceiros.',
+  detectedItems: [
+    { label: 'CPF Representante 1:', value: '502.149.594-14' },
+    { label: 'CPF Representante 2:', value: '969.711.384-06' },
+    { label: 'CPF Representante 3:', value: '454.862.324-89' },
+    { label: 'Uso indicado:', value: 'Chave de cruzamento (PROCV)' },
+  ],
+  safeVersion: '"Preciso que você formate os dados abaixo em uma tabela organizada para o Excel. Calcule a comissão de 5% sobre o valor total de vendas de cada representante e adicione uma coluna com o \'Valor da Comissão\'. Use um identificador interno (ex: Representante 1, Representante 2) em vez do CPF na primeira coluna, e faça o cruzamento com o CPF apenas localmente, fora da ferramenta de IA."'
+}
+
+    // Novo caso? Basta adicionar outro objeto aqui, seguindo o mesmo formato.
+    // Exemplo:
+    // {
+    //   id: 'contrato_cliente',
+    //   blockedText: `...`,
+    //   risk: 'medio',
+    //   estimatedLoss: 'R$ 45.000,00',
+    //   analysisSummary: '...',
+    //   reason: '...',
+    //   impactNote: '...',
+    //   detectedItems: [ { label: '...', value: '...' } ],
+    //   safeVersion: '...'
+    // }
+  ];
+
+  /* =========================================================
+   * 2) CONFIGURAÇÃO VISUAL DOS NÍVEIS DE RISCO
+   * ---------------------------------------------------------
+   * Mapeia cada nível de risco para o rótulo exibido e a
+   * posição/cor do ponteiro na escala verde/amarelo/vermelho.
+   * Isso permite que casos futuros usem risco 'baixo' ou 'medio'
+   * sem precisar de nenhum CSS ou HTML novo.
+   * ========================================================= */
+
+  const RISK_LEVELS = {
+    baixo: { label: 'Baixo', color: 'var(--risk-green)', bg: '#eafaf1', pointerLeft: '16.66%' },
+    medio: { label: 'Médio', color: 'var(--risk-yellow)', bg: '#fff9e8', pointerLeft: '50%' },
+    alto: { label: 'Alto', color: 'var(--risk-red)', bg: '#fdf2f2', pointerLeft: '83.33%' }
+  };
+
+  function getRiskConfig(riskKey) {
+    return RISK_LEVELS[riskKey] || RISK_LEVELS.alto;
+  }
+
+  /* =========================================================
+   * 3) DETECÇÃO — normalização e busca de casos bloqueados
+   * ========================================================= */
+
+  class BlockedPromptRegistry {
+    constructor(cases) {
+      // Pré-computa a versão normalizada de cada caso para evitar
+      // recalcular a cada tentativa de envio.
+      this.cases = cases.map((c) => ({
+        ...c,
+        _normalizedText: BlockedPromptRegistry.normalize(c.blockedText)
+      }));
+    }
+
+    // Normaliza quebras de linha / espaços extras para tolerar pequenas
+    // variações de formatação (ex: linhas em branco a mais, espaços no
+    // fim da linha), mas ainda exige que o CONTEÚDO seja idêntico ao
+    // texto cadastrado — qualquer outro texto segue o fluxo normal.
+    static normalize(text) {
+      return text
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join('\n')
+        .toLowerCase();
+    }
+
+    // Retorna o caso correspondente ao texto informado, ou null.
+    findMatch(rawText) {
+      const normalized = BlockedPromptRegistry.normalize(rawText);
+      return this.cases.find((c) => c._normalizedText === normalized) || null;
+    }
+  }
+
+  const registry = new BlockedPromptRegistry(BLOCKED_CASES);
+
+  /* =========================================================
+   * 4) PREENCHIMENTO DO PAINEL — construção da UI a partir do caso
+   * ========================================================= */
+
+  class PanelRenderer {
+
+    static escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    static renderDetectedItems(items) {
+      return items
+        .map(
+          (item) => `
+        <li><span class="dot"></span><span><span class="field-label">${PanelRenderer.escapeHtml(item.label)}</span>${PanelRenderer.escapeHtml(item.value)}</span></li>`
+        )
+        .join('');
+    }
+
+    // Monta o painel completo para um caso bloqueado.
+    static blockedCaseView(blockedCase) {
+      const risk = getRiskConfig(blockedCase.risk);
+
+      return `
+      <div class="panel-title">Análise do Prompt</div>
+      <div class="panel-text">${PanelRenderer.escapeHtml(blockedCase.analysisSummary)}</div>
+
+      <div class="panel-subtitle">Dados sensíveis encontrados</div>
+      <ul class="sensitive-list">
+        ${PanelRenderer.renderDetectedItems(blockedCase.detectedItems)}
+      </ul>
+
+      <div class="panel-subtitle">Nível de risco</div>
+      <div class="risk-badge-row">
+        <span class="risk-badge" style="background:${risk.bg}; color:${risk.color};">
+          <span class="risk-badge-dot" style="background:${risk.color};"></span>${risk.label}
+        </span>
+      </div>
+      <div class="risk-scale">
+        <div class="rs-green"></div>
+        <div class="rs-yellow"></div>
+        <div class="rs-red"></div>
+      </div>
+      <div class="risk-pointer-wrap">
+        <div class="risk-pointer" style="left:${risk.pointerLeft};">▲</div>
+      </div>
+      <div class="panel-text">${PanelRenderer.escapeHtml(blockedCase.reason)}</div>
+
+      <div class="impact-box">
+        <div class="impact-label">Prejuízo financeiro estimado</div>
+        <div class="impact-value">${PanelRenderer.escapeHtml(blockedCase.estimatedLoss)}</div>
+        <div class="impact-note">${PanelRenderer.escapeHtml(blockedCase.impactNote)}</div>
+      </div>
+
+      <div class="panel-subtitle">Sugestão de prompt seguro</div>
+      <div class="safe-prompt-box" id="safePromptText">${PanelRenderer.escapeHtml(blockedCase.safeVersion)}</div>
+
+      <button class="panel-btn primary" id="copyPromptBtn">Copiar prompt seguro</button>
+      <button class="panel-btn secondary" id="talkAmbassadorBtn">Falar com Embaixador de IA</button>
+    `;
+    }
+
+    // Conteúdo exibido quando o usuário abre o Assistente SEBRAE manualmente
+    // (clicando no botão flutuante), sem ter tentado enviar nada bloqueado.
+    static idleAssistantView() {
+      return `
+      <div class="panel-title">Assistente SEBRAE</div>
+      <div class="panel-text">Nenhum risco foi detectado no momento. O Assistente SEBRAE monitora silenciosamente os prompts enviados a esta IA e intervém apenas quando identifica dados sensíveis, como CPFs, dados bancários ou informações internas da organização.</div>
+
+      <div class="panel-subtitle">Nível de risco atual</div>
+      <div class="risk-scale">
+        <div class="rs-green"></div>
+        <div class="rs-yellow"></div>
+        <div class="rs-red"></div>
+      </div>
+      <div class="panel-text">Tudo certo por enquanto. Continue a conversa normalmente.</div>
+    `;
+    }
+  }
+
+  /* =========================================================
+   * 5) REFERÊNCIAS DO DOM E ESTADO
+   * ========================================================= */
+
   const sendBtn = document.getElementById('sendBtn');
   const sebraeBtn = document.getElementById('sebraeBtn');
   const sidePanel = document.getElementById('sidePanel');
@@ -24,12 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ---------- termômetro reage em tempo real ao que é digitado/colado ---------- */
-  // Assim que o conteúdo da caixa corresponder ao prompt bloqueado, o
+  // Assim que o conteúdo da caixa corresponder a algum caso cadastrado, o
   // indicador sobe para o vermelho imediatamente — mesmo sem clicar em
   // enviar. Se o texto deixar de corresponder (usuário edita/apaga),
   // o indicador volta para o verde.
   function updateThermoFromInput() {
-    if (isBlockedPrompt(promptInput.value)) {
+    if (registry.findMatch(promptInput.value)) {
       thermoIndicator.style.bottom = THERMO_HIGH;
     } else {
       thermoIndicator.style.bottom = THERMO_LOW;
@@ -40,104 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
     autoResize();
     updateThermoFromInput();
   });
-
-  /* ---------- o ÚNICO prompt que deve ser bloqueado ---------- */
-  const BLOCKED_PROMPT = `Preciso que você organize esta folha salarial em uma planilha.
-Nome: Ana Paula Ferreira
-CPF: 215.789.456-09
-Matrícula: 10458
-Cargo: Analista Financeira
-Salário: R$ 12.450,00
-Conta Bancária: Banco XP - Ag. 0001 - CC 45879-2
-Nome: Rodrigo Martins
-CPF: 347.112.890-11
-Salário: R$ 18.200,00
-Faça também um ranking dos colaboradores pelo salário.`;
-
-  // Normaliza quebras de linha / espaços extras para tolerar pequenas
-  // variações de formatação (ex: linhas em branco a mais, espaços no
-  // fim da linha), mas ainda exige que o CONTEÚDO seja este prompt
-  // específico — qualquer outro texto segue o fluxo normal de envio.
-  function normalize(text) {
-    return text
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .join('\n')
-      .toLowerCase();
-  }
-
-  const BLOCKED_PROMPT_NORMALIZED = normalize(BLOCKED_PROMPT);
-
-  function isBlockedPrompt(rawText) {
-    return normalize(rawText) === BLOCKED_PROMPT_NORMALIZED;
-  }
-
-  /* ---------- views do painel (bloqueio) ---------- */
-
-  function payrollBlockedView() {
-    return `
-      <div class="panel-title">Análise do Prompt</div>
-      <div class="panel-text">Foram detectados dados pessoais identificáveis (PII) e informações financeiras sensíveis.</div>
-
-      <div class="panel-subtitle">Dados sensíveis encontrados</div>
-      <ul class="sensitive-list">
-        <li><span class="dot"></span><span><span class="field-label">Nome completo:</span>Ana Paula Ferreira</span></li>
-        <li><span class="dot"></span><span><span class="field-label">CPF:</span>215.789.456-09</span></li>
-        <li><span class="dot"></span><span><span class="field-label">Matrícula funcional:</span>10458</span></li>
-        <li><span class="dot"></span><span><span class="field-label">Cargo:</span>Analista Financeira</span></li>
-        <li><span class="dot"></span><span><span class="field-label">Salário individual:</span>R$ 12.450,00</span></li>
-        <li><span class="dot"></span><span><span class="field-label">Conta bancária:</span>Banco XP · Ag. 0001 · CC 45879-2</span></li>
-        <li><span class="dot"></span><span><span class="field-label">Nome completo:</span>Rodrigo Martins</span></li>
-        <li><span class="dot"></span><span><span class="field-label">CPF:</span>347.112.890-11</span></li>
-        <li><span class="dot"></span><span><span class="field-label">Salário individual:</span>R$ 18.200,00</span></li>
-      </ul>
-
-      <div class="panel-subtitle">Nível de risco</div>
-      <div class="risk-badge-row">
-        <span class="risk-badge"><span class="risk-badge-dot"></span>Alto</span>
-      </div>
-      <div class="risk-scale">
-        <div class="rs-green"></div>
-        <div class="rs-yellow"></div>
-        <div class="rs-red"></div>
-      </div>
-      <div class="risk-pointer-wrap">
-        <div class="risk-pointer">▲</div>
-      </div>
-      <div class="panel-text">Este prompt contém dados pessoais identificáveis, informações financeiras e dados bancários. Seu envio pode representar riscos à privacidade e à segurança das informações.</div>
-
-      <div class="impact-box">
-        <div class="impact-label">Prejuízo financeiro estimado</div>
-        <div class="impact-value">R$ 120.000,00</div>
-        <div class="impact-note">Estimativa baseada em possíveis sanções da LGPD, custos de resposta a incidente e danos reputacionais decorrentes da exposição de dados pessoais, salariais e bancários de colaboradores.</div>
-      </div>
-
-      <div class="panel-subtitle">Sugestão de prompt seguro</div>
-      <div class="safe-prompt-box" id="safePromptText">"Preciso que você organize uma folha salarial em uma planilha contendo apenas cargos e faixas salariais, sem nomes, CPFs, matrículas ou dados bancários. Em seguida, gere um ranking dos colaboradores pela remuneração."</div>
-
-      <button class="panel-btn primary" id="copyPromptBtn">Copiar prompt seguro</button>
-      <button class="panel-btn secondary" id="talkAmbassadorBtn">Falar com Embaixador de IA</button>
-    `;
-  }
-
-  // Conteúdo exibido quando o usuário abre o Assistente SEBRAE manualmente
-  // (clicando no botão flutuante), sem ter tentado enviar nada bloqueado.
-  function idleAssistantView() {
-    return `
-      <div class="panel-title">Assistente SEBRAE</div>
-      <div class="panel-text">Nenhum risco foi detectado no momento. O Assistente SEBRAE monitora silenciosamente os prompts enviados a esta IA e intervém apenas quando identifica dados sensíveis, como CPFs, dados bancários ou informações internas da organização.</div>
-
-      <div class="panel-subtitle">Nível de risco atual</div>
-      <div class="risk-scale">
-        <div class="rs-green"></div>
-        <div class="rs-yellow"></div>
-        <div class="rs-red"></div>
-      </div>
-      <div class="panel-text">Tudo certo por enquanto. Continue a conversa normalmente.</div>
-    `;
-  }
 
   /* ---------- painel: abrir / fechar ---------- */
 
@@ -219,12 +356,6 @@ Faça também um ranking dos colaboradores pelo salário.`;
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
   function appendUserMessage(text) {
     const el = document.createElement('div');
     el.className = 'message user-message';
@@ -303,14 +434,14 @@ Faça também um ranking dos colaboradores pelo salário.`;
     // simula ~500ms de análise de segurança local, antes de qualquer envio real
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const blocked = isBlockedPrompt(text);
+    const matchedCase = registry.findMatch(text);
 
     setAnalyzing(false);
 
-    if (blocked) {
+    if (matchedCase) {
       // ENVIO BLOQUEADO — a mensagem nunca chega ao chat nem à IA.
       await showBlockToast();
-      openPanel(payrollBlockedView(), true);
+      openPanel(PanelRenderer.blockedCaseView(matchedCase), true);
       // o texto permanece na caixa para o usuário editar e tentar novamente
       busy = false;
       return;
@@ -349,7 +480,7 @@ Faça também um ranking dos colaboradores pelo salário.`;
     if (sidePanel.classList.contains('open')) {
       closePanel();
     } else {
-      openPanel(idleAssistantView(), false);
+      openPanel(PanelRenderer.idleAssistantView(), false);
     }
   });
 
