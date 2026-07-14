@@ -65,7 +65,7 @@ Representante CPF 502.149.594-14: vendeu R$ 50.000,00 no mês.
 Representante CPF 969.711.384-06: vendeu R$ 120.000,00 no mês.
 Representante CPF 454.862.324-89: vendeu R$ 85.000,00 no mês.`,
   risk: 'alto', // 'baixo' | 'medio' | 'alto'
-  estimatedLoss: 'R$ 90.000,00',
+  estimatedLoss: 'Você infringiu 5 normas da LGPD ',
   analysisSummary: 'Foram detectados múltiplos CPFs de representantes vinculados a dados de desempenho financeiro (vendas e comissão), com indicação explícita de uso como chave de cruzamento (PROCV) em planilha.',
   reason: 'Este prompt contém CPFs completos de três representantes associados a valores de vendas e comissão, e solicita que o CPF seja mantido como identificador para cruzamento de dados (PROCV). Isso configura tratamento de dados pessoais sensíveis em uma ferramenta de IA externa, indo além do necessário para a finalidade (cálculo de comissão), violando o princípio da minimização de dados previsto na LGPD. O uso do CPF como chave de busca é particularmente arriscado, pois facilita a reidentificação e o cruzamento indevido com outras bases de dados.',
   impactNote: 'Estimativa baseada em possíveis sanções da ANPD por tratamento de dados pessoais sem finalidade justificada, além de riscos de exposição de dados de remuneração e identificação de colaboradores caso o conteúdo seja processado ou armazenado por terceiros.',
@@ -200,7 +200,7 @@ Representante CPF 454.862.324-89: vendeu R$ 85.000,00 no mês.`,
       <div class="panel-text">${PanelRenderer.escapeHtml(blockedCase.reason)}</div>
 
       <div class="impact-box">
-        <div class="impact-label">Prejuízo financeiro estimado</div>
+        <div class="impact-label">Quantidade de Normas Quebradas</div>
         <div class="impact-value">${PanelRenderer.escapeHtml(blockedCase.estimatedLoss)}</div>
         <div class="impact-note">${PanelRenderer.escapeHtml(blockedCase.impactNote)}</div>
       </div>
