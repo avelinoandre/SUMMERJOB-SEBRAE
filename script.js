@@ -209,7 +209,6 @@ Representante CPF 454.862.324-89: vendeu R$ 85.000,00 no mês.`,
       <div class="safe-prompt-box" id="safePromptText">${PanelRenderer.escapeHtml(blockedCase.safeVersion)}</div>
 
       <button class="panel-btn primary" id="copyPromptBtn">Copiar prompt seguro</button>
-      <button class="panel-btn secondary" id="talkAmbassadorBtn">Falar com Embaixador de IA</button>
     `;
     }
 
